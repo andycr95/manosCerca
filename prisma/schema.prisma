@@ -238,8 +238,8 @@ model RequestUpdate {
 
 model Delivery {
   id String @id @default(cuid())
-  aidRequestId String
-  aidRequest AidRequest @relation(fields: [aidRequestId], references: [id])
+  aidRequestId String?
+  aidRequest AidRequest? @relation(fields: [aidRequestId], references: [id], onDelete: SetNull)
   deliveredById String?
   deliveredBy User? @relation("DeliveryAgent", fields: [deliveredById], references: [id])
   receivedBy String
@@ -259,8 +259,10 @@ model DeliveryItem {
   id String @id @default(cuid())
   deliveryId String
   delivery Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
-  requestItemId String
-  requestItem AidRequestItem @relation(fields: [requestItemId], references: [id])
+  requestItemId String?
+  requestItem AidRequestItem? @relation(fields: [requestItemId], references: [id], onDelete: SetNull)
+  inventoryItemId String
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
   quantity Int
   notes String?
 }
@@ -305,6 +307,7 @@ model InventoryItem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   transactions InventoryTransaction[]
+  deliveryItems DeliveryItem[]
   @@index([category, active])
 }
 

@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   if (!canManageUsers(session.role)) return NextResponse.json({ error: "No tienes permiso para administrar usuarios." }, { status: 403 });
   const parsed = userSchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || "Revisa los datos del usuario." }, { status: 400 });
-  if (session.role !== "SUPERADMIN" && [Role.SUPERADMIN, Role.ADMIN].includes(parsed.data.role)) return NextResponse.json({ error: "Solo un superadministrador puede crear cuentas administrativas." }, { status: 403 });
+  if (session.role !== "SUPERADMIN" && new Set<Role>([Role.SUPERADMIN, Role.ADMIN]).has(parsed.data.role)) return NextResponse.json({ error: "Solo un superadministrador puede crear cuentas administrativas." }, { status: 403 });
   try {
     const user = await prisma.user.create({ data: { name: parsed.data.name, documentNumber: parsed.data.documentNumber, email: parsed.data.email.toLowerCase(), phone: parsed.data.phone || null, passwordHash: await hash(parsed.data.password, 12), role: parsed.data.role }, select: { id: true, name: true, documentNumber: true, email: true, phone: true, role: true, active: true, createdAt: true, updatedAt: true } });
     await prisma.auditLog.create({ data: { userId: session.id, entity: "User", entityId: user.id, action: "USER_CREATED", newData: { name: user.name, documentNumber: user.documentNumber, email: user.email, role: user.role } } });

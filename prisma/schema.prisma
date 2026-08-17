@@ -1,0 +1,285 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPERADMIN
+  ADMIN
+  LEADER
+  COLLABORATOR
+}
+
+enum LocationType {
+  NEIGHBORHOOD
+  SECTOR
+  COMMUNE
+  VILLAGE
+  RURAL_AREA
+  OTHER
+}
+
+enum BeneficiaryType {
+  PERSON
+  FAMILY
+  COMMUNITY_GROUP
+}
+
+enum AidStatus {
+  PENDING
+  IN_PROGRESS
+  SCHEDULED
+  DELIVERED
+  CANCELLED
+  UNABLE_TO_SERVE
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum RequestUpdateType {
+  COMMENT
+  STATUS_CHANGE
+  ASSIGNMENT
+  CALL
+  VISIT
+  SCHEDULE
+  OTHER
+}
+
+enum EvidenceType {
+  PHOTO
+  DOCUMENT
+  SIGNATURE
+  OTHER
+}
+
+enum RequestSource {
+  INTERNAL
+  PUBLIC
+}
+
+model User {
+  id String @id @default(cuid())
+  name String
+  documentNumber String? @unique
+  email String @unique
+  phone String?
+  passwordHash String
+  role Role @default(COLLABORATOR)
+  avatarUrl String?
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdRequests AidRequest[] @relation("RequestCreator")
+  assignedRequests AidRequest[] @relation("RequestAssignee")
+  updates RequestUpdate[]
+  deliveries Delivery[] @relation("DeliveryAgent")
+  auditLogs AuditLog[]
+}
+
+model Department {
+  id String @id @default(cuid())
+  divipolaCode String @unique
+  name String
+  municipalities Municipality[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Municipality {
+  id String @id @default(cuid())
+  divipolaCode String @unique
+  name String
+  entityType String @default("Municipio")
+  departmentId String
+  department Department @relation(fields: [departmentId], references: [id])
+  locations Location[]
+  beneficiaries Beneficiary[]
+  requests AidRequest[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([departmentId, name])
+}
+
+model Location {
+  id String @id @default(cuid())
+  name String
+  type LocationType
+  city String?
+  department String?
+  address String?
+  reference String?
+  latitude Float?
+  longitude Float?
+  municipalityId String?
+  municipality Municipality? @relation(fields: [municipalityId], references: [id])
+  parentId String?
+  parent Location? @relation("LocationHierarchy", fields: [parentId], references: [id])
+  children Location[] @relation("LocationHierarchy")
+  beneficiaries Beneficiary[]
+  requests AidRequest[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([municipalityId, type, name])
+}
+
+model Beneficiary {
+  id String @id @default(cuid())
+  type BeneficiaryType @default(PERSON)
+  name String
+  documentType String?
+  documentNumber String?
+  phone String?
+  alternativePhone String?
+  address String?
+  locationId String?
+  location Location? @relation(fields: [locationId], references: [id])
+  municipalityId String?
+  municipality Municipality? @relation(fields: [municipalityId], references: [id])
+  familySize Int?
+  notes String?
+  active Boolean @default(true)
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  requests AidRequest[]
+}
+
+model AidCategory {
+  id String @id @default(cuid())
+  name String @unique
+  icon String?
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  items AidRequestItem[]
+}
+
+model AidRequest {
+  id String @id @default(cuid())
+  code String @unique
+  source RequestSource @default(INTERNAL)
+  beneficiaryId String
+  beneficiary Beneficiary @relation(fields: [beneficiaryId], references: [id])
+  locationId String?
+  location Location? @relation(fields: [locationId], references: [id])
+  municipalityId String?
+  municipality Municipality? @relation(fields: [municipalityId], references: [id])
+  contactName String
+  contactPhone String
+  preferredContact String?
+  description String?
+  priority Priority @default(MEDIUM)
+  status AidStatus @default(PENDING)
+  assignedToId String?
+  assignedTo User? @relation("RequestAssignee", fields: [assignedToId], references: [id])
+  createdById String?
+  createdBy User? @relation("RequestCreator", fields: [createdById], references: [id])
+  requestedAt DateTime @default(now())
+  scheduledAt DateTime?
+  completedAt DateTime?
+  notes String?
+  latitude Float?
+  longitude Float?
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  items AidRequestItem[]
+  updates RequestUpdate[]
+  deliveries Delivery[]
+  auditLogs AuditLog[]
+  @@index([status, priority])
+  @@index([municipalityId, createdAt])
+}
+
+model AidRequestItem {
+  id String @id @default(cuid())
+  aidRequestId String
+  aidRequest AidRequest @relation(fields: [aidRequestId], references: [id], onDelete: Cascade)
+  categoryId String
+  category AidCategory @relation(fields: [categoryId], references: [id])
+  description String?
+  quantity Int @default(1)
+  unit String @default("unidad")
+  notes String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deliveryItems DeliveryItem[]
+}
+
+model RequestUpdate {
+  id String @id @default(cuid())
+  aidRequestId String
+  aidRequest AidRequest @relation(fields: [aidRequestId], references: [id], onDelete: Cascade)
+  userId String?
+  user User? @relation(fields: [userId], references: [id])
+  type RequestUpdateType @default(COMMENT)
+  comment String?
+  previousStatus AidStatus?
+  newStatus AidStatus?
+  createdAt DateTime @default(now())
+}
+
+model Delivery {
+  id String @id @default(cuid())
+  aidRequestId String
+  aidRequest AidRequest @relation(fields: [aidRequestId], references: [id])
+  deliveredById String?
+  deliveredBy User? @relation("DeliveryAgent", fields: [deliveredById], references: [id])
+  receivedBy String
+  receiverDocument String?
+  deliveryDate DateTime @default(now())
+  latitude Float?
+  longitude Float?
+  notes String?
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  items DeliveryItem[]
+  evidences DeliveryEvidence[]
+}
+
+model DeliveryItem {
+  id String @id @default(cuid())
+  deliveryId String
+  delivery Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  requestItemId String
+  requestItem AidRequestItem @relation(fields: [requestItemId], references: [id])
+  quantity Int
+  notes String?
+}
+
+model DeliveryEvidence {
+  id String @id @default(cuid())
+  deliveryId String
+  delivery Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  type EvidenceType @default(PHOTO)
+  fileUrl String
+  caption String?
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id String @id @default(cuid())
+  userId String?
+  user User? @relation(fields: [userId], references: [id])
+  entity String
+  entityId String
+  action String
+  oldData Json?
+  newData Json?
+  ipAddress String?
+  aidRequestId String?
+  aidRequest AidRequest? @relation(fields: [aidRequestId], references: [id])
+  createdAt DateTime @default(now())
+  @@index([entity, entityId])
+}

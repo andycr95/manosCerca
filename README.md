@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Manos Cerca
 
-## Getting Started
+Aplicación de gestión de ayudas comunitarias. Incluye el panel interno, un formulario público y catálogo territorial de Colombia basado en DIVIPOLA.
 
-First, run the development server:
+## Entorno local
+
+Requisitos: Node.js 20+ y Docker Desktop.
 
 ```bash
+npm install
+npm run db:up
+npm run db:push
+npm run db:seed
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abre [http://localhost:3000](http://localhost:3000). El formulario público está en [http://localhost:3000/solicitar-ayuda](http://localhost:3000/solicitar-ayuda).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+PostgreSQL se ejecuta de manera aislada en el contenedor `turahelp-postgres`, accesible en el puerto `5434`. La cadena de conexión local está en `.env`; no la uses en producción.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Datos locales incluidos
 
-## Learn More
+- 33 departamentos y 1.122 entidades DIVIPOLA.
+- Barrios de Buenaventura por localidad y comuna.
+- Corregimientos y veredas de Buenaventura.
+- Usuarios de demostración, categorías y solicitudes semilla.
 
-To learn more about Next.js, take a look at the following resources:
+## Comandos útiles
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run db:reset  # reconstruye y vuelve a sembrar la base local
+npm run db:down   # detiene PostgreSQL local
+npm run lint
+npm run build
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+El formulario público usa `POST /api/public-requests` y persiste la solicitud en PostgreSQL.
 
-## Deploy on Vercel
+## Acceso local
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+El panel interno requiere una sesión. El seed crea estas cuentas de prueba:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Rol | Correo | Contraseña |
+| --- | --- | --- |
+| Superadministrador | `1000000001` | valor de `SUPERADMIN_PASSWORD` en `.env` |
+| Administradora | `1000000002` | `Colabora2026!` |
+| Líder | `1000000003` | `Colabora2026!` |
+| Colaboradora | `1000000004` | `Colabora2026!` |
+
+La contraseña y `AUTH_SECRET` locales no deben usarse en producción. Define valores nuevos y seguros antes de desplegar.

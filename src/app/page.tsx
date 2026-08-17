@@ -1,69 +1,84 @@
-import Image from "next/image";
+"use client";
+
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { SearchableSelect } from "@/components/searchable-select";
+
+type Status = "Pendiente" | "En gestión" | "Programada" | "Entregada" | "Cancelada" | "No atendida";
+type Priority = "Urgente" | "Alta" | "Media" | "Baja";
+type RequestRow = { id: string; code: string; name: string; location: string; need: string; priority: Priority; status: Status; assignee: string; initials: string; createdAt: string; tint: string };
+type DashboardData = {
+  session: { id: string; name: string; email: string; role: string };
+  metrics: { active: number; urgent: number; pending: number; inProgress: number; scheduled: number; delivered: number };
+  requests: Array<{ id: string; code: string; beneficiary: { name: string }; location: { name: string } | null; priority: string; status: string; assignedTo: { id: string; name: string } | null; createdAt: string; items: Array<{ category: { name: string } }> }>;
+  beneficiaries: Array<{ id: string; name: string; type: string; phone: string | null; familySize: number | null; location: { name: string } | null; municipality: { name: string } | null; createdAt: string }>;
+  users: Array<{ id: string; name: string; email: string; phone: string | null; role: string; createdAt: string }>;
+  deliveries: Array<{ id: string; deliveryDate: string; receivedBy: string; deliveredBy: { name: string } | null; aidRequest: { code: string; beneficiary: { name: string }; location: { name: string } | null }; items: Array<{ quantity: number }> }>;
+  updates: Array<{ id: string; type: string; comment: string | null; createdAt: string; user: { name: string } | null; aidRequest: { code: string; beneficiary: { name: string } } }>;
+  sectors: Array<{ name: string; count: number }>;
+};
+
+const icons: Record<string, string> = { Inicio: "⌂", Solicitudes: "□", "Mi trabajo": "✓", Beneficiarios: "♙", Sectores: "⌖", Entregas: "◫", Equipo: "♧", Reportes: "▥", Configuración: "⚙" };
+const sections = Object.keys(icons);
+const statusLabels: Record<string, Status> = { PENDING: "Pendiente", IN_PROGRESS: "En gestión", SCHEDULED: "Programada", DELIVERED: "Entregada", CANCELLED: "Cancelada", UNABLE_TO_SERVE: "No atendida" };
+const priorityLabels: Record<string, Priority> = { URGENT: "Urgente", HIGH: "Alta", MEDIUM: "Media", LOW: "Baja" };
+const roleLabels: Record<string, string> = { SUPERADMIN: "Superadministrador", ADMIN: "Administradora", LEADER: "Líder comunitario", COLLABORATOR: "Colaborador" };
+
+function tint(index: number) { return ["orange", "green", "plum", "blue"][index % 4]; }
+function relativeDate(date: string) { const days = Math.max(0, Math.floor((Date.now() - new Date(date).getTime()) / 86400000)); return days === 0 ? "Hoy" : days === 1 ? "Ayer" : `Hace ${days} días`; }
+function toRow(item: DashboardData["requests"][number], index: number): RequestRow { return { id: item.id, code: item.code, name: item.beneficiary.name, location: item.location?.name || "Sin sector", need: item.items.map((entry) => entry.category.name).join(" · ") || "Sin categoría", priority: priorityLabels[item.priority] || "Media", status: statusLabels[item.status] || "Pendiente", assignee: item.assignedTo?.name || "Sin asignar", initials: item.assignedTo?.name.split(" ").map((part) => part[0]).join("").slice(0, 2) || "", createdAt: item.createdAt, tint: tint(index) }; }
+
+function StatusDot({ status }: { status: Status }) { return <span className={`status-pill status-${status.toLowerCase().replace(" ", "-")}`}><i />{status}</span>; }
 
 export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+  const router = useRouter();
+  const [section, setSection] = useState("Inicio");
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState<"Todos" | Status>("Todos");
+  const [showComposer, setShowComposer] = useState(false);
+  const [notice, setNotice] = useState(false);
+  const [composerSector, setComposerSector] = useState("");
+  const [composerName, setComposerName] = useState("");
+  const [composerNeed, setComposerNeed] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const loadDashboard = async () => { const response = await fetch("/api/dashboard", { cache: "no-store" }); if (response.status === 401) { router.replace("/login"); return; } if (response.ok) setData(await response.json()); };
+  useEffect(() => { let mounted = true; fetch("/api/dashboard", { cache: "no-store" }).then(async (response) => { if (!mounted) return; if (response.status === 401) { router.replace("/login"); return; } if (response.ok) setData(await response.json()); }).catch(() => undefined); return () => { mounted = false; }; }, [router]);
+
+  const rows = useMemo(() => (data?.requests || []).map(toRow).filter((item) => { const text = `${item.code} ${item.name} ${item.location} ${item.need}`.toLowerCase(); return text.includes(query.toLowerCase()) && (status === "Todos" || item.status === status); }), [data, query, status]);
+  const session = data?.session;
+  const metrics = data?.metrics || { active: 0, urgent: 0, pending: 0, inProgress: 0, scheduled: 0, delivered: 0 };
+  const submitQuickRequest = async (event: FormEvent) => { event.preventDefault(); setSaving(true); const response = await fetch("/api/admin/requests", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ beneficiaryName: composerName, sector: composerSector, need: composerNeed }) }); setSaving(false); if (response.ok) { setShowComposer(false); setComposerName(""); setComposerSector(""); setComposerNeed(""); await loadDashboard(); } };
+
+  return <main className="app-shell">
+    <aside className="sidebar"><div className="brand"><span className="brand-mark">m</span><span>Manos <span>Cerca</span></span></div><div className="workspace"><span className="workspace-icon">⌂</span><div><strong>Red Comunitaria</strong><small>Buenaventura, Valle</small></div><span className="chevron">⌄</span></div><nav className="side-nav" aria-label="Navegación principal">{sections.map((item) => <button key={item} onClick={() => setSection(item)} className={section === item ? "active" : ""}><span>{icons[item]}</span>{item}{item === "Solicitudes" && <b>{metrics.active}</b>}</button>)}</nav><div className="sidebar-bottom"><button className="help-link"><span>?</span>Centro de ayuda</button><div className="profile"><div className="avatar avatar-main">{session?.name.split(" ").map((part) => part[0]).join("").slice(0, 2) || "MC"}</div><div><strong>{session?.name || "Cargando…"}</strong><small>{session ? roleLabels[session.role] : ""}</small></div><button aria-label="Cerrar sesión" onClick={async () => { await fetch("/api/auth/logout", { method: "POST" }); router.replace("/login"); }}>⋮</button></div></div></aside>
+    <section className="content"><header className="topbar"><button className="mobile-menu" aria-label="Abrir menú">☰</button><div className="breadcrumb"><span>Red Comunitaria</span><b>/</b><strong>{section}</strong></div><div className="top-actions"><button className="search-button" onClick={() => document.getElementById("search")?.focus()}>⌕ <span>Buscar</span><kbd>⌘ K</kbd></button><button className="notification" onClick={() => setNotice(!notice)} aria-label="Notificaciones">♧<i /></button><div className="avatar avatar-top">{session?.name.split(" ").map((part) => part[0]).join("").slice(0, 2) || "MC"}</div></div>{notice && <div className="notification-card"><strong>{data?.updates.length || 0} novedades</strong><p>Actividad reciente de la red comunitaria.</p></div>}</header>{!data ? <div className="loading-state"><span className="loading-orb">m</span><h2>Cargando la red…</h2><p>Estamos reuniendo la información más reciente.</p></div> : <div className="dashboard">{section === "Inicio" ? <HomeView data={data} rows={rows} metrics={metrics} setSection={setSection} setShowComposer={setShowComposer} query={query} setQuery={setQuery} status={status} setStatus={setStatus} /> : <SectionView section={section} data={data} rows={rows} metrics={metrics} setShowComposer={setShowComposer} query={query} setQuery={setQuery} status={status} setStatus={setStatus} />}</div>}</section>
+    <nav className="bottom-nav"><button className={section === "Inicio" ? "active" : ""} onClick={() => setSection("Inicio")}>⌂<span>Inicio</span></button><button className={section === "Solicitudes" ? "active" : ""} onClick={() => setSection("Solicitudes")}>□<span>Solicitudes</span></button><button className="new-fab" onClick={() => setShowComposer(true)}>＋</button><button className={section === "Mi trabajo" ? "active" : ""} onClick={() => setSection("Mi trabajo")}>✓<span>Mi trabajo</span></button><button onClick={() => setSection("Configuración")}>☷<span>Más</span></button></nav>
+    {showComposer && <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowComposer(false)}><form className="composer" onSubmit={submitQuickRequest} role="dialog" aria-modal="true" aria-labelledby="new-request" onMouseDown={(event) => event.stopPropagation()}><button type="button" className="close" onClick={() => setShowComposer(false)}>×</button><p className="eyebrow">Registro rápido</p><h2 id="new-request">Nueva solicitud</h2><p>Registra lo esencial y quedará disponible para todo el equipo.</p><label>Nombre o familia<input value={composerName} onChange={(event) => setComposerName(event.target.value)} placeholder="Ej. Familia Riascos" autoFocus required /></label><SearchableSelect label="Sector" placeholder="Busca un sector" value={composerSector} onChange={setComposerSector} options={(data?.sectors || []).map((item) => ({ value: item.name, label: item.name }))} /><label>¿Qué necesita?<input value={composerNeed} onChange={(event) => setComposerNeed(event.target.value)} placeholder="Ej. Mercado o alimentos" required /></label><button className="primary-button wide" disabled={saving || !composerSector}>{saving ? "Guardando…" : "Guardar solicitud"} <span>→</span></button></form></div>}
+  </main>;
 }
+
+function HomeView({ data, rows, metrics, setSection, setShowComposer, query, setQuery, status, setStatus }: { data: DashboardData; rows: RequestRow[]; metrics: DashboardData["metrics"]; setSection: (value: string) => void; setShowComposer: (value: boolean) => void; query: string; setQuery: (value: string) => void; status: "Todos" | Status; setStatus: (value: "Todos" | Status) => void }) {
+  return <><section className="intro"><div><p className="eyebrow">{new Intl.DateTimeFormat("es-CO", { dateStyle: "full" }).format(new Date())}</p><h1>Buenos días, {data.session.name.split(" ")[0]} <span>✦</span></h1><p className="welcome">Aquí tienes el pulso de la ayuda comunitaria hoy.</p></div><button className="primary-button" onClick={() => setShowComposer(true)}><b>＋</b> Nueva solicitud</button></section><section className="quick-row"><button className="quick-card urgent-card" onClick={() => setSection("Solicitudes")}><span className="quick-icon">!</span><div><strong>{metrics.urgent} urgentes</strong><small>Requieren atención</small></div><b>→</b></button><button className="quick-card" onClick={() => setSection("Solicitudes")}><span className="quick-icon amber">◴</span><div><strong>{metrics.pending} por gestionar</strong><small>Solicitudes pendientes</small></div><b>→</b></button><button className="quick-card" onClick={() => setSection("Entregas")}><span className="quick-icon teal">✓</span><div><strong>{metrics.scheduled} programadas</strong><small>Próximas entregas</small></div><b>→</b></button></section><section className="metrics" aria-label="Resumen de solicitudes">{[[metrics.active, "Solicitudes activas", "Total en seguimiento", "subtle"], [metrics.pending, "Pendientes", "Por asignar o revisar", "amber"], [metrics.inProgress, "En gestión", "Equipo trabajando", "teal"], [metrics.scheduled, "Programadas", "Con fecha de entrega", "plum"], [metrics.delivered, "Entregadas", "Este mes", "green"]].map(([value, label, extra, color]) => <article key={label as string} className={`metric ${color}`}><div><strong>{value as number}</strong><span>{label as string}</span></div><small>{extra as string}</small></article>)}</section><section className="main-grid"><RequestsPanel rows={rows} query={query} setQuery={setQuery} status={status} setStatus={setStatus} setSection={setSection} /><ActivityPanel updates={data.updates} sectors={data.sectors} setSection={setSection} /></section></>;
+}
+
+function RequestsPanel({ rows, query, setQuery, status, setStatus, setSection }: { rows: RequestRow[]; query: string; setQuery: (value: string) => void; status: "Todos" | Status; setStatus: (value: "Todos" | Status) => void; setSection: (value: string) => void }) { return <article className="requests-panel"><div className="panel-head"><div><h2>Solicitudes recientes</h2><p>Las últimas necesidades registradas en la red.</p></div><button className="text-button" onClick={() => setSection("Solicitudes")}>Ver todas <span>→</span></button></div><div className="filters"><label><span>⌕</span><input id="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por nombre, código o sector" /></label><SearchableSelect hideLabel className="filter-search-select" label="Filtrar por estado" placeholder="Todos" value={status} onChange={(value) => setStatus(value as "Todos" | Status)} options={["Todos", "Pendiente", "En gestión", "Programada", "Entregada"].map((value) => ({ value, label: value }))} /></div><RequestTable rows={rows} /><div className="panel-foot"><span>Mostrando {rows.length} solicitudes</span><button className="active">1</button></div></article>; }
+function RequestTable({ rows }: { rows: RequestRow[] }) { return <div className="request-table"><div className="table-header"><span>Solicitud</span><span>Necesidad</span><span>Prioridad</span><span>Estado</span><span>Responsable</span><span /></div>{rows.map((item) => <div className="request-row" key={item.id}><div className="request-person"><div className={`person-icon ${item.tint}`}>{item.name.charAt(0)}</div><div><strong>{item.name}</strong><small>{item.code} · {item.location}</small></div></div><span className="need"><i>◈</i>{item.need}</span><span className={`priority ${item.priority.toLowerCase()}`}>{item.priority === "Urgente" && "● "}{item.priority}</span><StatusDot status={item.status} /><div className="assignee">{item.initials ? <span className={`avatar mini ${item.tint}`}>{item.initials}</span> : <span className="unassigned">—</span>}<small>{item.assignee}</small></div><button className="row-menu" aria-label={`Opciones para ${item.code}`}>•••</button></div>)}{rows.length === 0 && <div className="empty">No hay solicitudes que coincidan con tu búsqueda.</div>}</div>; }
+
+function ActivityPanel({ updates, sectors, setSection }: { updates: DashboardData["updates"]; sectors: DashboardData["sectors"]; setSection: (value: string) => void }) { const max = Math.max(...sectors.map((item) => item.count), 1); return <aside className="side-content"><article className="activity-panel"><div className="panel-head"><div><h2>Actividad reciente</h2><p>Lo que está pasando ahora.</p></div></div><div className="timeline">{updates.slice(0, 4).map((item, index) => <div key={item.id}><span className={`timeline-avatar ${["green", "orange", "blue", "pink"][index]}`}>{item.user?.name.split(" ").map((part) => part[0]).join("").slice(0, 2) || "MC"}</span><p><strong>{item.user?.name || "Equipo"}</strong> {item.comment || "actualizó una solicitud"}<br/><b>{item.aidRequest.code}</b><small>{relativeDate(item.createdAt)}</small></p></div>)}{updates.length === 0 && <div className="empty">Todavía no hay actividad registrada.</div>}</div><button className="all-activity" onClick={() => setSection("Reportes")}>Ver toda la actividad <span>→</span></button></article><article className="sectors-panel"><div className="panel-head"><div><h2>Necesidades por sector</h2><p>Solicitudes activas</p></div></div><div className="sector-bars">{sectors.slice(0, 4).map((item) => <div key={item.name}><span>{item.name}</span><b>{item.count}</b><i><em style={{ width: `${Math.round(item.count / max * 100)}%` }} /></i></div>)}{sectors.length === 0 && <div className="empty">Aún no hay datos territoriales.</div>}</div><button className="all-activity" onClick={() => setSection("Sectores")}>Ver reporte territorial <span>→</span></button></article></aside>; }
+
+function SectionView({ section, data, rows, metrics, setShowComposer, query, setQuery, status, setStatus }: { section: string; data: DashboardData; rows: RequestRow[]; metrics: DashboardData["metrics"]; setShowComposer: (value: boolean) => void; query: string; setQuery: (value: string) => void; status: "Todos" | Status; setStatus: (value: "Todos" | Status) => void }) {
+  const titles: Record<string, [string, string]> = { Solicitudes: ["Solicitudes", "Gestiona, asigna y da seguimiento a cada necesidad."], "Mi trabajo": ["Mi trabajo", "Lo que tienes pendiente para hoy."], Beneficiarios: ["Beneficiarios", "Personas, familias y comunidades acompañadas."], Sectores: ["Sectores y territorio", "Una lectura clara de dónde se necesita apoyo."], Entregas: ["Entregas", "Registra y consulta las ayudas que ya llegaron."], Equipo: ["Equipo", "Personas autorizadas para trabajar en la red."], Reportes: ["Reportes", "Indicadores para tomar mejores decisiones."], Configuración: ["Configuración", "Preferencias y seguridad de Manos Cerca."] };
+  const [title, subtitle] = titles[section] || titles.Inicio;
+  return <section className="section-view"><div className="section-heading"><div><p className="eyebrow">Red Comunitaria</p><h1>{title}</h1><p>{subtitle}</p></div>{["Solicitudes", "Beneficiarios", "Entregas"].includes(section) && <button className="primary-button" onClick={() => setShowComposer(true)}><b>＋</b> Nueva solicitud</button>}</div>{section === "Solicitudes" && <><div className="section-stat-row"><Stat label="Activas" value={metrics.active} tone="green" /><Stat label="Urgentes" value={metrics.urgent} tone="orange" /><Stat label="Pendientes" value={metrics.pending} tone="amber" /><Stat label="En gestión" value={metrics.inProgress} tone="teal" /></div><article className="full-panel"><div className="panel-head"><div><h2>Todas las solicitudes</h2><p>Busca por código, persona, necesidad o sector.</p></div></div><div className="filters"><label><span>⌕</span><input id="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar solicitud" /></label><SearchableSelect hideLabel className="filter-search-select" label="Filtrar por estado" placeholder="Todos" value={status} onChange={(value) => setStatus(value as "Todos" | Status)} options={["Todos", "Pendiente", "En gestión", "Programada", "Entregada"].map((value) => ({ value, label: value }))} /></div><RequestTable rows={rows} /></article></>}{section === "Mi trabajo" && <WorkView data={data} rows={rows} />}{section === "Beneficiarios" && <BeneficiariesView beneficiaries={data.beneficiaries} />}{section === "Sectores" && <SectorsView sectors={data.sectors} />}{section === "Entregas" && <DeliveriesView deliveries={data.deliveries} />}{section === "Equipo" && <TeamView users={data.users} currentRole={data.session.role} />}{section === "Reportes" && <ReportsView data={data} metrics={metrics} />}{section === "Configuración" && <SettingsView session={data.session} />}</section>;
+}
+
+function Stat({ label, value, tone }: { label: string; value: number; tone: string }) { return <article className={`section-stat ${tone}`}><strong>{value}</strong><span>{label}</span></article>; }
+function WorkView({ data, rows }: { data: DashboardData; rows: RequestRow[] }) { const mine = rows.filter((row) => row.assignee === data.session.name); return <div className="work-grid"><article className="full-panel"><div className="panel-head"><div><h2>Asignadas a ti</h2><p>Casos que requieren tu seguimiento.</p></div><span className="count-badge">{mine.length}</span></div><RequestTable rows={mine} /></article><article className="full-panel checklist"><div className="panel-head"><div><h2>Resumen de hoy</h2><p>Un punto de partida para tu jornada.</p></div></div><div className="check-item done"><span>✓</span><div><strong>Revisar solicitudes pendientes</strong><small>{data.metrics.pending} casos esperan atención</small></div></div><div className="check-item"><span>2</span><div><strong>Confirmar próximas entregas</strong><small>{data.metrics.scheduled} entregas programadas</small></div></div><div className="check-item"><span>3</span><div><strong>Actualizar seguimiento</strong><small>Deja una nota en cada visita</small></div></div></article></div>; }
+function BeneficiariesView({ beneficiaries }: { beneficiaries: DashboardData["beneficiaries"] }) { return <article className="full-panel"><div className="panel-head"><div><h2>Personas registradas</h2><p>{beneficiaries.length} beneficiarios activos en la red.</p></div><button className="filter-button">⌕ Buscar</button></div><div className="directory-grid">{beneficiaries.map((item, index) => <article className="directory-card" key={item.id}><div className={`person-icon ${tint(index)}`}>{item.name.charAt(0)}</div><div><strong>{item.name}</strong><small>{item.type === "FAMILY" ? "Familia" : item.type === "COMMUNITY_GROUP" ? "Comunidad" : "Persona"} · {item.location?.name || item.municipality?.name || "Ubicación pendiente"}</small><p>{item.phone || "Sin teléfono registrado"}{item.familySize ? ` · ${item.familySize} integrantes` : ""}</p></div><button className="row-menu">•••</button></article>)}</div>{beneficiaries.length === 0 && <div className="empty">No hay beneficiarios registrados.</div>}</article>; }
+function SectorsView({ sectors }: { sectors: DashboardData["sectors"] }) { const max = Math.max(...sectors.map((item) => item.count), 1); return <div className="territory-grid"><article className="full-panel"><div className="panel-head"><div><h2>Necesidades por barrio o sector</h2><p>Solicitudes registradas por ubicación.</p></div></div><div className="wide-bars">{sectors.map((item) => <div key={item.name}><div><span>{item.name}</span><b>{item.count}</b></div><i><em style={{ width: `${Math.round(item.count / max * 100)}%` }} /></i></div>)}</div></article><article className="full-panel territory-note"><span>⌖</span><h2>Buenaventura, Valle</h2><p>La ubicación se clasifica automáticamente como urbana o rural y conserva el detalle de barrios, corregimientos y veredas para orientar mejor cada ayuda.</p><div className="location-chip">76109 · DIVIPOLA</div></article></div>; }
+function DeliveriesView({ deliveries }: { deliveries: DashboardData["deliveries"] }) { return <article className="full-panel"><div className="panel-head"><div><h2>Historial de entregas</h2><p>Ayudas entregadas y persona que las recibió.</p></div></div><div className="delivery-list">{deliveries.map((item) => <div className="delivery-row" key={item.id}><span className="delivery-check">✓</span><div><strong>{item.aidRequest.beneficiary.name}</strong><small>{item.aidRequest.code} · {item.aidRequest.location?.name || "Sin sector"}</small></div><span className="delivery-items">{item.items.reduce((sum, entry) => sum + entry.quantity, 0)} artículos</span><div><strong>{item.receivedBy}</strong><small>{new Date(item.deliveryDate).toLocaleDateString("es-CO")}</small></div></div>)}{deliveries.length === 0 && <div className="empty">Todavía no hay entregas registradas. Las entregas aparecerán aquí cuando el equipo confirme una.</div>}</div></article>; }
+function TeamView({ users, currentRole }: { users: DashboardData["users"]; currentRole: string }) { return <article className="full-panel"><div className="panel-head"><div><h2>Personas del equipo</h2><p>{users.length} cuentas activas · {roleLabels[currentRole]}</p></div>{["SUPERADMIN", "ADMIN"].includes(currentRole) && <button className="filter-button">＋ Invitar persona</button>}</div><div className="team-list">{users.map((user) => <div className="team-row" key={user.id}><div className="avatar avatar-team">{user.name.split(" ").map((part) => part[0]).join("").slice(0, 2)}</div><div><strong>{user.name}</strong><small>{user.email} · {user.phone || "Sin teléfono"}</small></div><span className="role-chip">{roleLabels[user.role]}</span><span className="status-online"><i /> Activo</span><button className="row-menu">•••</button></div>)}</div></article>; }
+function ReportsView({ data, metrics }: { data: DashboardData; metrics: DashboardData["metrics"] }) { const categories = data.requests.flatMap((item) => item.items.map((entry) => entry.category.name)).reduce<Record<string, number>>((result, name) => { result[name] = (result[name] || 0) + 1; return result; }, {}); const max = Math.max(...Object.values(categories), 1); return <><div className="section-stat-row"><Stat label="Solicitudes activas" value={metrics.active} tone="green" /><Stat label="Beneficiarios" value={data.beneficiaries.length} tone="teal" /><Stat label="Entregas registradas" value={data.deliveries.length} tone="plum" /><Stat label="Personas en equipo" value={data.users.length} tone="amber" /></div><div className="report-grid"><article className="full-panel"><div className="panel-head"><div><h2>Necesidades más frecuentes</h2><p>Distribución de categorías registradas.</p></div></div><div className="wide-bars">{Object.entries(categories).map(([name, count]) => <div key={name}><div><span>{name}</span><b>{count}</b></div><i><em style={{ width: `${Math.round(count / max * 100)}%` }} /></i></div>)}{Object.keys(categories).length === 0 && <div className="empty">El reporte se llenará con las próximas solicitudes.</div>}</div></article><article className="full-panel report-callout"><span>✦</span><h2>Una red más visible</h2><p>Usa estos indicadores en las reuniones de coordinación para priorizar recursos por territorio y dar seguimiento a los compromisos.</p></article></div></>; }
+function SettingsView({ session }: { session: DashboardData["session"] }) { return <div className="settings-grid"><article className="full-panel settings-card"><span className="settings-icon">⌂</span><div><h2>Red Comunitaria</h2><p>Buenaventura, Valle del Cauca</p><small>La cobertura territorial incluye departamentos, municipios, barrios y veredas de Colombia.</small></div><button className="filter-button">Editar</button></article><article className="full-panel settings-card"><span className="settings-icon">♙</span><div><h2>Tu cuenta</h2><p>{session.name} · {roleLabels[session.role]}</p><small>{session.email}</small></div><button className="filter-button">Seguridad</button></article><article className="full-panel settings-card"><span className="settings-icon">✓</span><div><h2>Privacidad y auditoría</h2><p>Sesiones protegidas y trazabilidad activa.</p><small>Cada cambio relevante queda registrado para el equipo administrador.</small></div><span className="status-online"><i /> Activo</span></article></div>; }

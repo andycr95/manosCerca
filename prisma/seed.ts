@@ -11,6 +11,8 @@ async function main() {
   await prisma.deliveryEvidence.deleteMany();
   await prisma.deliveryItem.deleteMany();
   await prisma.delivery.deleteMany();
+  await prisma.inventoryTransaction.deleteMany();
+  await prisma.inventoryItem.deleteMany();
   await prisma.requestUpdate.deleteMany();
   await prisma.aidRequestItem.deleteMany();
   await prisma.auditLog.deleteMany();
@@ -66,6 +68,14 @@ async function main() {
     prisma.user.create({ data: { name: "Carlos Mina", documentNumber: "1000000003", email: "lider@turaayuda.local", phone: "300 000 0002", passwordHash: localPasswordHash, role: Role.LEADER } }),
     prisma.user.create({ data: { name: "Ana Valencia", documentNumber: "1000000004", email: "colaborador@turaayuda.local", phone: "300 000 0003", passwordHash: localPasswordHash, role: Role.COLLABORATOR } }),
   ]);
+
+  await prisma.inventoryItem.createMany({ data: [
+    { sku: "KIT-MERCADO", name: "Mercado básico", category: "Alimentos", unit: "kit", quantity: 24, minStock: 8, location: "Bodega principal" },
+    { sku: "MED-BASICOS", name: "Medicamentos básicos", category: "Salud", unit: "unidad", quantity: 40, minStock: 12, location: "Botiquín" },
+    { sku: "COLCHONETA", name: "Colchonetas", category: "Alojamiento", unit: "unidad", quantity: 8, minStock: 3, location: "Bodega principal" },
+    { sku: "AGUA-20L", name: "Agua potable", category: "Agua", unit: "garrafa", quantity: 60, minStock: 15, location: "Bodega principal" },
+    { sku: "ASEO-KIT", name: "Kits de aseo", category: "Higiene", unit: "kit", quantity: 18, minStock: 6, location: "Bodega principal" },
+  ] });
 
   const firstNeighborhood = await prisma.location.findFirstOrThrow({ where: { municipalityId: buenaventura.id, type: LocationType.NEIGHBORHOOD } });
   const beneficiary = await prisma.beneficiary.create({ data: { name: "Familia Riascos", type: "FAMILY", phone: "300 123 4567", municipalityId: buenaventura.id, locationId: firstNeighborhood.id, familySize: 4 } });

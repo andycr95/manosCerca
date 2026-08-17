@@ -20,7 +20,7 @@ export async function GET() {
       include: { beneficiary: true, location: true, assignedTo: { select: { id: true, name: true } }, items: { include: { category: true } } },
     }),
     prisma.beneficiary.findMany({ where: { deletedAt: null, active: true }, orderBy: { createdAt: "desc" }, take: 80, include: { location: true, municipality: { select: { name: true } } } }),
-    prisma.user.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true, email: true, phone: true, role: true, createdAt: true } }),
+    prisma.user.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true, email: true, phone: true, role: true, active: true, createdAt: true } }),
     prisma.delivery.findMany({ where: { deletedAt: null }, orderBy: { deliveryDate: "desc" }, take: 80, include: { aidRequest: { include: { beneficiary: true, location: true } }, deliveredBy: { select: { name: true } }, items: true } }),
     prisma.requestUpdate.findMany({ orderBy: { createdAt: "desc" }, take: 12, include: { user: { select: { name: true } }, aidRequest: { select: { code: true, beneficiary: { select: { name: true } } } } } }),
     prisma.aidRequest.count({ where: { deletedAt: null, priority: Priority.URGENT, status: { not: AidStatus.DELIVERED } } }),

@@ -67,6 +67,12 @@ enum RequestSource {
   PUBLIC
 }
 
+enum InventoryMovementType {
+  INBOUND
+  OUTBOUND
+  ADJUSTMENT
+}
+
 model User {
   id String @id @default(cuid())
   name String
@@ -84,6 +90,7 @@ model User {
   updates RequestUpdate[]
   deliveries Delivery[] @relation("DeliveryAgent")
   auditLogs AuditLog[]
+  inventoryTransactions InventoryTransaction[]
 }
 
 model Department {
@@ -282,4 +289,37 @@ model AuditLog {
   aidRequest AidRequest? @relation(fields: [aidRequestId], references: [id])
   createdAt DateTime @default(now())
   @@index([entity, entityId])
+}
+
+model InventoryItem {
+  id String @id @default(cuid())
+  sku String @unique
+  name String
+  category String
+  unit String @default("unidad")
+  quantity Int @default(0)
+  minStock Int @default(0)
+  location String?
+  notes String?
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  transactions InventoryTransaction[]
+  @@index([category, active])
+}
+
+model InventoryTransaction {
+  id String @id @default(cuid())
+  inventoryItemId String
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  userId String?
+  user User? @relation(fields: [userId], references: [id])
+  type InventoryMovementType
+  quantity Int
+  previousQuantity Int?
+  newQuantity Int?
+  reason String?
+  reference String?
+  createdAt DateTime @default(now())
+  @@index([inventoryItemId, createdAt])
 }

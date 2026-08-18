@@ -42,13 +42,13 @@ export default function PublicRequestPage() {
   const isBuenaventura = municipality === "76109";
   const departmentOptions = departments.map((item) => ({ value: item.code, label: item.name }));
   const municipalitySelectOptions = municipalityOptions.map((item) => ({ value: item.code, label: `${item.name}${item.type !== "Municipio" ? ` (${item.type})` : ""}` }));
-  const neighborhoodOptions = buenaventuraNeighborhoods.map((item) => ({ value: item.name, label: `Comuna ${item.commune} · ${item.name}`, group: `Localidad ${item.locality}` }));
+  const neighborhoodOptions = buenaventuraNeighborhoods.map((item, index) => ({ value: `neighborhood-${index}`, label: `Comuna ${item.commune} · ${item.name}`, group: `Localidad ${item.locality}` }));
   const ruralDistrictOptions = buenaventuraRuralAreas.map((item) => ({ value: item.district, label: item.district }));
   const villageOptions = selectedRuralDistrict?.villages.map((item) => ({ value: item, label: item })) ?? [];
   const locationIsComplete = Boolean(department && municipality && areaType && (!isBuenaventura && manualLocation || isBuenaventura && areaType === "urban" && neighborhood || isBuenaventura && areaType === "rural" && village));
   const selectedDepartmentName = departmentOptions.find((item) => item.value === department)?.label || "";
   const selectedMunicipalityName = municipalitySelectOptions.find((item) => item.value === municipality)?.label || "";
-  const selectedLocationName = isBuenaventura && areaType === "urban" ? neighborhood : isBuenaventura ? village : manualLocation;
+  const selectedLocationName = isBuenaventura && areaType === "urban" ? buenaventuraNeighborhoods[Number(neighborhood.replace("neighborhood-", ""))]?.name || "" : isBuenaventura ? village : manualLocation;
 
   const toggleNeed = (need: string) => {
     setSelectedNeeds((current) => current.includes(need) ? current.filter((item) => item !== need) : [...current, need]);
@@ -72,7 +72,7 @@ export default function PublicRequestPage() {
 
   const submitRequest = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const locationName = isBuenaventura && areaType === "urban" ? neighborhood : isBuenaventura ? village : manualLocation;
+    const locationName = isBuenaventura && areaType === "urban" ? buenaventuraNeighborhoods[Number(neighborhood.replace("neighborhood-", ""))]?.name || "" : isBuenaventura ? village : manualLocation;
     const parentLocationName = isBuenaventura && areaType === "rural" ? ruralDistrict : undefined;
     setSubmitting(true);
     setSubmissionError("");

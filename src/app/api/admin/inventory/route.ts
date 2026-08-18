@@ -4,7 +4,7 @@ import { canManageRequests, getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 const itemSchema = z.object({
-  sku: z.string().trim().regex(/^[A-Za-z0-9-]{3,40}$/, "El SKU solo puede contener letras, números y guiones."),
+  sku: z.string().trim().regex(/^[A-Za-z0-9-]{3,40}$/, "El SKU solo puede contener letras, números y guiones.").optional().or(z.literal("")),
   name: z.string().trim().min(2).max(120),
   category: z.string().trim().min(2).max(80),
   unit: z.string().trim().min(1).max(30),
@@ -30,8 +30,9 @@ export async function POST(request: Request) {
   const parsed = itemSchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || "Revisa los datos del artículo." }, { status: 400 });
   try {
+    const sku = parsed.data.sku || `MC-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
     const item = await prisma.$transaction(async (tx) => {
-      const created = await tx.inventoryItem.create({ data: { ...parsed.data, location: parsed.data.location || null, notes: parsed.data.notes || null } });
+      const created = await tx.inventoryItem.create({ data: { ...parsed.data, sku, location: parsed.data.location || null, notes: parsed.data.notes || null } });
       if (parsed.data.quantity > 0) await tx.inventoryTransaction.create({ data: { inventoryItemId: created.id, userId: session.id, type: "INBOUND", quantity: parsed.data.quantity, previousQuantity: 0, newQuantity: parsed.data.quantity, reason: "Existencia inicial" } });
       await tx.auditLog.create({ data: { userId: session.id, entity: "InventoryItem", entityId: created.id, action: "INVENTORY_ITEM_CREATED", newData: { sku: created.sku, name: created.name, quantity: created.quantity } } });
       return tx.inventoryItem.findUniqueOrThrow({ where: { id: created.id }, include: transactionInclude });
